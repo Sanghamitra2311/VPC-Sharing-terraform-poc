@@ -1,4 +1,4 @@
-========================== HOST PROJECT RESOURCES (Theta) ======================
+# ========================== HOST PROJECT RESOURCES (Theta) ======================
 
 # 1. Enable Shared VPC in Host Project
 resource "google_compute_shared_vpc_host_project" "host" {
@@ -39,7 +39,7 @@ resource "google_compute_firewall" "allow_ssh" {
   source_ranges = ["0.0.0.0/0"]
 }
 
-====================SHARED VPC ATTACHMENT & IAM (Managed via Host)==================
+# ====================SHARED VPC ATTACHMENT & IAM (Managed via Host)==================
 
 # 5. Attach the Service Project to the Host
 resource "google_compute_shared_vpc_service_project" "service_attach" {
@@ -98,4 +98,5 @@ resource "google_compute_instance" "test_vm" {
   ]
 }
 #
+
 
