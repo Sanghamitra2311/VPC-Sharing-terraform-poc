@@ -176,3 +176,9 @@ firewall_rules = {
 create_psa        = false
 psa_address       = "10.240.0.0"  # Leave as "" for auto-allocation
 psa_prefix_length = 24
+
+```
+
+## Screenshots
+<img width="1080" height="659" alt="image" src="https://github.com/user-attachments/assets/1fb0372f-e43c-4e00-b443-86c161282eb7" />
+
