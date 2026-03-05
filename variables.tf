@@ -18,14 +18,3 @@ variable "subnet_cidr" {
   type = string
 }
 
-variable "machine_type" {
-  type = string
-}
-
-variable "vm_name" {
-  type = string
-}
-
-variable "boot_image" {
-  type = string
-}

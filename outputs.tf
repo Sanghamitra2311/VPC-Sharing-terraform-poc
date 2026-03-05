@@ -1,7 +1,9 @@
-output "vm_internal_ip" {
-  value = google_compute_instance.test_vm.network_interface[0].network_ip
+output "shared_vpc_id" {
+  description = "The ID of the Shared VPC in the Host Project"
+  value       = google_compute_network.shared_vpc.id
 }
 
-output "vm_external_ip" {
-  value = google_compute_instance.test_vm.network_interface[0].access_config[0].nat_ip
+output "shared_subnet_id" {
+  description = "The ID of the Subnet shared to the Service Project"
+  value       = google_compute_subnetwork.shared_subnet.id
 }
