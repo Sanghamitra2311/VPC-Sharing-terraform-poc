@@ -9,6 +9,6 @@ terraform {
 
 # Provider for the Host Project (Theta)
 provider "google" {
-  
+
 }
 

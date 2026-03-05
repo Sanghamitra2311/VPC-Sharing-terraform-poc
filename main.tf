@@ -4,13 +4,13 @@
 
 # Enable Shared VPC in Host Project
 resource "google_compute_shared_vpc_host_project" "host" {
-  
-  project  = var.host_project_id
+
+  project = var.host_project_id
 }
 
 # Create the VPC Network in Host Project
 resource "google_compute_network" "shared_vpc" {
-  
+
   name                    = var.network_name
   project                 = var.host_project_id
   auto_create_subnetworks = false
@@ -19,7 +19,7 @@ resource "google_compute_network" "shared_vpc" {
 
 # Create the Subnet to be shared
 resource "google_compute_subnetwork" "shared_subnet" {
-  
+
   name          = "${var.network_name}-subnet"
   ip_cidr_range = var.subnet_cidr
   region        = var.subnet_region
@@ -29,10 +29,10 @@ resource "google_compute_subnetwork" "shared_subnet" {
 
 # Host Firewall: Allow SSH to the Shared VPC
 resource "google_compute_firewall" "allow_ssh" {
-  
-  name     = "allow-ssh-shared-network"
-  network  = google_compute_network.shared_vpc.name
-  project  = var.host_project_id
+
+  name    = "allow-ssh-shared-network"
+  network = google_compute_network.shared_vpc.name
+  project = var.host_project_id
 
   allow {
     protocol = "tcp"
@@ -47,7 +47,7 @@ resource "google_compute_firewall" "allow_ssh" {
 
 #  Attach the Service Project to the Host
 resource "google_compute_shared_vpc_service_project" "service_attach" {
- 
+
   host_project    = var.host_project_id
   service_project = var.service_project_id
 }
