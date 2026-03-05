@@ -2,13 +2,13 @@
 # HOST PROJECT RESOURCES (Theta)
 # ==========================================
 
-# 1. Enable Shared VPC in Host Project
+# Enable Shared VPC in Host Project
 resource "google_compute_shared_vpc_host_project" "host" {
   
   project  = var.host_project_id
 }
 
-# 2. Create the VPC Network in Host Project
+# Create the VPC Network in Host Project
 resource "google_compute_network" "shared_vpc" {
   
   name                    = var.network_name
@@ -17,7 +17,7 @@ resource "google_compute_network" "shared_vpc" {
   depends_on              = [google_compute_shared_vpc_host_project.host]
 }
 
-# 3. Create the Subnet to be shared
+# Create the Subnet to be shared
 resource "google_compute_subnetwork" "shared_subnet" {
   
   name          = "${var.network_name}-subnet"
@@ -27,7 +27,7 @@ resource "google_compute_subnetwork" "shared_subnet" {
   project       = var.host_project_id
 }
 
-# 4. Host Firewall: Allow SSH to the Shared VPC
+# Host Firewall: Allow SSH to the Shared VPC
 resource "google_compute_firewall" "allow_ssh" {
   
   name     = "allow-ssh-shared-network"
@@ -45,28 +45,25 @@ resource "google_compute_firewall" "allow_ssh" {
 # SHARED VPC ATTACHMENT & IAM (Managed via Host)
 # ==========================================
 
-# 5. Attach the Service Project to the Host
+#  Attach the Service Project to the Host
 resource "google_compute_shared_vpc_service_project" "service_attach" {
  
   host_project    = var.host_project_id
   service_project = var.service_project_id
 }
 
-# 6. Fetch Service Project Data (To get the Project Number dynamically)
+# Fetch Service Project Data (To get the Project Number dynamically)
 data "google_project" "service_project" {
 
   project_id = var.service_project_id
 }
 
-# 7. IAM: Grant Service Project's Cloud Services account access to the Subnet
-# This is the automated permission that allows the Ornate project to consume the Theta subnet.
-resource "google_compute_subnetwork_iam_member" "subnet_user" {
-  
-  project    = var.host_project_id
-  region     = google_compute_subnetwork.shared_subnet.region
-  subnetwork = google_compute_subnetwork.shared_subnet.name
-  role       = "roles/compute.networkUser"
-  member     = "serviceAccount:${data.google_project.service_project.number}@cloudservices.gserviceaccount.com"
+# By assigning this to the HOST PROJECT rather than a specific subnet, 
+# the Service Project gets access to ALL subnets in the Shared VPC.
+resource "google_project_iam_member" "project_network_user" {
+  project = var.host_project_id
+  role    = "roles/compute.networkUser"
+  member  = "serviceAccount:${data.google_project.service_project.number}@cloudservices.gserviceaccount.com"
 }
 
 
