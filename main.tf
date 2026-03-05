@@ -1,12 +1,12 @@
 # ==========================================
-#       ENABLE HOST PROJECT
+# 1. ENABLE HOST PROJECT
 # ==========================================
 resource "google_compute_shared_vpc_host_project" "host" {
   project = var.host_project_id
 }
 
 # ==========================================
-#         CREATE THE VPC
+# 2. CREATE THE VPC
 # ==========================================
 resource "google_compute_network" "shared_vpc" {
   name                    = var.network_name
@@ -16,41 +16,54 @@ resource "google_compute_network" "shared_vpc" {
 }
 
 # ==========================================
-#         CREATE THE SUBNET 
+# 3. CREATE MULTIPLE SUBNETS DYNAMICALLY
 # ==========================================
 resource "google_compute_subnetwork" "shared_subnet" {
-  name          = var.subnet_name
-  ip_cidr_range = var.subnet_cidr
-  region        = var.region
+  for_each      = var.subnets
+  
+  name          = each.key
+  ip_cidr_range = each.value.cidr
+  region        = each.value.region
   network       = google_compute_network.shared_vpc.id
   project       = var.host_project_id
 }
 
 # ==========================================
-#    ATTACH SERVICE PROJECT & PRESENT SUBNET
-
+# 4 & 5. ATTACH MULTIPLE SERVICE PROJECTS 
 # ==========================================
+# This extracts a unique list of project IDs so Terraform doesn't crash 
+# if two subnets share the same service project.
+locals {
+  unique_service_projects = toset([for k, v in var.subnets : v.service_project_id])
+}
+
 resource "google_compute_shared_vpc_service_project" "service_attach" {
+  for_each        = local.unique_service_projects
   host_project    = var.host_project_id
-  service_project = var.service_project_id
+  service_project = each.value
 }
 
-data "google_project" "service_project" {
-  project_id = var.service_project_id
+data "google_project" "service_projects" {
+  for_each   = local.unique_service_projects
+  project_id = each.value
 }
 
+# Present each subnet strictly to its mapped Service Project
 resource "google_compute_subnetwork_iam_member" "subnet_user" {
+  for_each   = var.subnets
+  
   project    = var.host_project_id
-  region     = google_compute_subnetwork.shared_subnet.region
-  subnetwork = google_compute_subnetwork.shared_subnet.name
+  region     = each.value.region
+  subnetwork = google_compute_subnetwork.shared_subnet[each.key].name
   role       = "roles/compute.networkUser"
-  member     = "serviceAccount:${data.google_project.service_project.number}@cloudservices.gserviceaccount.com"
+  
+  # Dynamically fetches the correct project number based on the subnet's mapped project ID
+  member     = "serviceAccount:${data.google_project.service_projects[each.value.service_project_id].number}@cloudservices.gserviceaccount.com"
 }
 
 # ==========================================
-#         FIREWALL RULES
+# FIREWALL RULES (UNIFIED ENGINE)
 # ==========================================
-
 resource "google_compute_firewall" "unified_rules" {
   for_each = var.firewall_rules
 
@@ -63,11 +76,9 @@ resource "google_compute_firewall" "unified_rules" {
   target_tags             = length(each.value.target_tags) > 0 ? each.value.target_tags : null
   target_service_accounts = length(each.value.target_service_accounts) > 0 ? each.value.target_service_accounts : null
 
-  # Smartly assigns ranges based on direction
   source_ranges      = each.value.direction == "INGRESS" ? each.value.ranges : null
   destination_ranges = each.value.direction == "EGRESS" ? each.value.ranges : null
 
-  # Only builds an 'allow' block if the action is allow
   dynamic "allow" {
     for_each = each.value.action == "allow" ? each.value.rules : []
     content {
@@ -76,7 +87,6 @@ resource "google_compute_firewall" "unified_rules" {
     }
   }
 
-  # Only builds a 'deny' block if the action is deny
   dynamic "deny" {
     for_each = each.value.action == "deny" ? each.value.rules : []
     content {
@@ -86,7 +96,6 @@ resource "google_compute_firewall" "unified_rules" {
   }
 }
 
-# Default Deny-All Ingress
 resource "google_compute_firewall" "default_deny_all_ingress" {
   name          = "${var.network_name}-default-deny-all-ingress"
   project       = var.host_project_id
@@ -97,7 +106,6 @@ resource "google_compute_firewall" "default_deny_all_ingress" {
   deny { protocol = "all" }
 }
 
-# Default Deny-All Egress
 resource "google_compute_firewall" "default_deny_all_egress" {
   name               = "${var.network_name}-default-deny-all-egress"
   project            = var.host_project_id
@@ -109,7 +117,7 @@ resource "google_compute_firewall" "default_deny_all_egress" {
 }
 
 # ==========================================
-#   OPTIONAL: PRIVATE SERVICE ACCESS (PSA)
+# OPTIONAL: PRIVATE SERVICE ACCESS (PSA)
 # ==========================================
 resource "google_compute_global_address" "psa_range" {
   count         = var.create_psa ? 1 : 0
@@ -117,6 +125,9 @@ resource "google_compute_global_address" "psa_range" {
   project       = var.host_project_id
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
+  
+  # Applies the explicit IP address if provided in tfvars
+  address       = var.psa_address != "" ? var.psa_address : null
   prefix_length = var.psa_prefix_length
   network       = google_compute_network.shared_vpc.id
 }
@@ -126,5 +137,4 @@ resource "google_service_networking_connection" "psa_connection" {
   network                 = google_compute_network.shared_vpc.id
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.psa_range[0].name]
-
 }

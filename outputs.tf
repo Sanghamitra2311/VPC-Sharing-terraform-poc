@@ -3,13 +3,13 @@ output "shared_vpc_id" {
   value       = google_compute_network.shared_vpc.id
 }
 
-output "presented_subnet_id" {
-  description = "The Subnet shared with the Service Project"
-  value       = google_compute_subnetwork.shared_subnet.id
+output "presented_subnets" {
+  description = "Map of all created subnets and their IDs"
+  value       = { for k, v in google_compute_subnetwork.shared_subnet : k => v.id }
 }
 
 output "deployed_firewall_rules" {
-  description = "List of the names of all firewall rules successfully deployed"
+  description = "List of all firewall rules successfully deployed"
   value = concat(
     [for rule in google_compute_firewall.unified_rules : rule.name],
     [

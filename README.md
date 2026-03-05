@@ -104,4 +104,75 @@ firewall_rules = {
 
 ## License
 
-MIT
+MIT# Enterprise GCP Shared VPC & Firewall Module
+
+This Terraform module provisions a production-grade, Hub-and-Spoke Shared VPC architecture in Google Cloud Platform (GCP). It is designed to be highly scalable, utilizing dynamic maps to deploy multiple subnets, attach various service projects, and manage complex firewall rules through a single, unified engine.
+
+
+
+## 🏗️ Architecture & Features
+
+This module handles the complete lifecycle of a Shared VPC foundation:
+
+1. **Host Project Initialization**: Automatically enables the Shared VPC Host feature on the designated host project (`theta-signal-418711`).
+2. **Global VPC Creation**: Deploys a custom mode VPC network.
+3. **Dynamic Subnet Mapping**: Uses a `map(object)` to dynamically generate any number of subnets across different regions and CIDR ranges.
+4. **Service Project Attachment & IAM Handshake**: 
+   * Safely links multiple unique service projects (e.g., `ornate-node-483516-e3`) to the Host project.
+   * Dynamically fetches the hidden Google API service account numbers.
+   * Grants precise `roles/compute.networkUser` permissions *only* for the specific subnets assigned to that service project.
+5. **Zero-Trust Firewall Engine**: 
+   * Deploys hardcoded `Priority 65534` Default Deny-All rules for both Ingress and Egress to secure the network boundary.
+   * Utilizes a DRY (Don't Repeat Yourself) `for_each` engine to dynamically generate explicit Allow/Deny, Ingress/Egress rules from a single variable map.
+6. **Optional Private Service Access (PSA)**: Configures internal IP allocation and VPC peering to Google Managed Services (like Cloud SQL) with toggleable settings.
+
+---
+
+## 🚀 Usage Guide
+
+You do not need to modify the `main.tf` file to scale this infrastructure. All infrastructure changes are driven entirely through the `terraform.tfvars` file.
+
+### Example `terraform.tfvars`
+
+```hcl
+host_project_id = "theta-signal-418711"
+network_name    = "shared-vpc-migration"
+
+# ==========================================
+# 1. SUBNET & SERVICE PROJECT ROUTING
+# ==========================================
+# Add as many subnets as needed. You can map multiple subnets 
+# to the same service project safely.
+subnets = {
+  "presented-subnet-1" = {
+    region             = "asia-southeast1"
+    cidr               = "10.238.19.128/25"
+    service_project_id = "ornate-node-483516-e3"
+  },
+  "database-subnet-2" = {
+    region             = "asia-southeast1"
+    cidr               = "10.238.19.0/26"
+    service_project_id = "ornate-node-483516-e3"
+  }
+}
+
+# ==========================================
+# 2. UNIFIED FIREWALL RULES
+# ==========================================
+# Defines custom firewall rules that override the Default Deny-All.
+firewall_rules = {
+  "allow-internal-traffic" = {
+    direction = "INGRESS"
+    action    = "allow"
+    priority  = 1000
+    ranges    = ["10.238.19.0/24"] 
+    rules     = [{ protocol = "all", ports = [] }]
+  }
+}
+
+# ==========================================
+# 3. PRIVATE SERVICE ACCESS (Optional)
+# ==========================================
+create_psa        = false
+psa_address       = "10.240.0.0"  # Leave as "" for auto-allocation
+psa_prefix_length = 24

@@ -1,9 +1,17 @@
 variable "host_project_id" { type = string }
-variable "service_project_id" { type = string }
-variable "region" { type = string }
 variable "network_name" { type = string }
-variable "subnet_name" { type = string }
-variable "subnet_cidr" { type = string }
+
+# ==========================================
+# DYNAMIC SUBNETS & SERVICE PROJECTS MAP
+# ==========================================
+variable "subnets" {
+  description = "Map of subnets to create and share with specific service projects"
+  type = map(object({
+    region             = string
+    cidr               = string
+    service_project_id = string
+  }))
+}
 
 # ==========================================
 # OPTIONAL: PRIVATE SERVICE ACCESS (PSA)
@@ -11,6 +19,12 @@ variable "subnet_cidr" { type = string }
 variable "create_psa" {
   type    = bool
   default = false
+}
+
+variable "psa_address" {
+  type        = string
+  description = "The starting IP address for the PSA range (Leave blank to let GCP auto-allocate)"
+  default     = ""
 }
 
 variable "psa_prefix_length" {
@@ -24,8 +38,8 @@ variable "psa_prefix_length" {
 variable "firewall_rules" {
   description = "Unified map of all custom firewall rules"
   type = map(object({
-    direction               = string # "INGRESS" or "EGRESS"
-    action                  = string # "allow" or "deny"
+    direction               = string
+    action                  = string 
     priority                = number
     ranges                  = list(string)
     target_tags             = optional(list(string), [])
