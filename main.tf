@@ -1,12 +1,12 @@
 # ==========================================
-# 1. ENABLE HOST PROJECT
+#       ENABLE HOST PROJECT
 # ==========================================
 resource "google_compute_shared_vpc_host_project" "host" {
   project = var.host_project_id
 }
 
 # ==========================================
-# 2. CREATE THE VPC
+#         CREATE THE VPC
 # ==========================================
 resource "google_compute_network" "shared_vpc" {
   name                    = var.network_name
@@ -16,7 +16,7 @@ resource "google_compute_network" "shared_vpc" {
 }
 
 # ==========================================
-# 3. CREATE THE SUBNET 
+#         CREATE THE SUBNET 
 # ==========================================
 resource "google_compute_subnetwork" "shared_subnet" {
   name          = var.subnet_name
@@ -27,8 +27,8 @@ resource "google_compute_subnetwork" "shared_subnet" {
 }
 
 # ==========================================
-# 4 & 5. ATTACH SERVICE PROJECT & PRESENT SUBNET
-# (This was missing from your code)
+#    ATTACH SERVICE PROJECT & PRESENT SUBNET
+
 # ==========================================
 resource "google_compute_shared_vpc_service_project" "service_attach" {
   host_project    = var.host_project_id
@@ -48,11 +48,7 @@ resource "google_compute_subnetwork_iam_member" "subnet_user" {
 }
 
 # ==========================================
-# FIREWALL RULES
-# ==========================================
-
-# ==========================================
-# FIREWALL RULES (UNIFIED ENGINE)
+#         FIREWALL RULES
 # ==========================================
 
 resource "google_compute_firewall" "unified_rules" {
@@ -113,7 +109,7 @@ resource "google_compute_firewall" "default_deny_all_egress" {
 }
 
 # ==========================================
-# 6. OPTIONAL: PRIVATE SERVICE ACCESS (PSA)
+#   OPTIONAL: PRIVATE SERVICE ACCESS (PSA)
 # ==========================================
 resource "google_compute_global_address" "psa_range" {
   count         = var.create_psa ? 1 : 0
@@ -130,4 +126,5 @@ resource "google_service_networking_connection" "psa_connection" {
   network                 = google_compute_network.shared_vpc.id
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.psa_range[0].name]
+
 }
