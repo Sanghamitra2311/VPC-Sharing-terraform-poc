@@ -51,44 +51,41 @@ resource "google_compute_subnetwork_iam_member" "subnet_user" {
 # FIREWALL RULES
 # ==========================================
 
-# Enhanced ALLOW Firewall (Ingress)
-resource "google_compute_firewall" "dynamic_allow_ingress" {
-  count                   = length(var.allow_rules) > 0 ? 1 : 0
-  name                    = "${var.network_name}-allow-ingress"
-  project                 = var.host_project_id
-  network                 = google_compute_network.shared_vpc.name
-  direction               = "INGRESS"
-  priority                = 1000
-  target_tags             = length(var.firewall_target_tags) > 0 ? var.firewall_target_tags : null
-  target_service_accounts = length(var.firewall_target_service_accounts) > 0 ? var.firewall_target_service_accounts : null
-  source_ranges           = var.allow_source_ranges
+# ==========================================
+# FIREWALL RULES (UNIFIED ENGINE)
+# ==========================================
 
+resource "google_compute_firewall" "unified_rules" {
+  for_each = var.firewall_rules
+
+  name      = "${var.network_name}-${each.key}"
+  project   = var.host_project_id
+  network   = google_compute_network.shared_vpc.name
+  direction = each.value.direction
+  priority  = each.value.priority
+
+  target_tags             = length(each.value.target_tags) > 0 ? each.value.target_tags : null
+  target_service_accounts = length(each.value.target_service_accounts) > 0 ? each.value.target_service_accounts : null
+
+  # Smartly assigns ranges based on direction
+  source_ranges      = each.value.direction == "INGRESS" ? each.value.ranges : null
+  destination_ranges = each.value.direction == "EGRESS" ? each.value.ranges : null
+
+  # Only builds an 'allow' block if the action is allow
   dynamic "allow" {
-    for_each = var.allow_rules
+    for_each = each.value.action == "allow" ? each.value.rules : []
     content {
       protocol = allow.value.protocol
       ports    = allow.value.ports
     }
   }
-}
 
-# Enhanced ALLOW Firewall (Egress)
-resource "google_compute_firewall" "dynamic_allow_egress" {
-  count                   = length(var.allow_egress_rules) > 0 ? 1 : 0
-  name                    = "${var.network_name}-allow-egress"
-  project                 = var.host_project_id
-  network                 = google_compute_network.shared_vpc.name
-  direction               = "EGRESS"
-  priority                = 1000
-  target_tags             = length(var.firewall_target_tags) > 0 ? var.firewall_target_tags : null
-  target_service_accounts = length(var.firewall_target_service_accounts) > 0 ? var.firewall_target_service_accounts : null
-  destination_ranges      = var.allow_egress_destination_ranges
-
-  dynamic "allow" {
-    for_each = var.allow_egress_rules
+  # Only builds a 'deny' block if the action is deny
+  dynamic "deny" {
+    for_each = each.value.action == "deny" ? each.value.rules : []
     content {
-      protocol = allow.value.protocol
-      ports    = allow.value.ports
+      protocol = deny.value.protocol
+      ports    = deny.value.ports
     }
   }
 }
@@ -99,12 +96,9 @@ resource "google_compute_firewall" "default_deny_all_ingress" {
   project       = var.host_project_id
   network       = google_compute_network.shared_vpc.name
   direction     = "INGRESS"
-  priority      = 65534 # FIXED: Lowest priority catch-all
+  priority      = 65534
   source_ranges = ["0.0.0.0/0"]
-
-  deny {
-    protocol = "all"
-  }
+  deny { protocol = "all" }
 }
 
 # Default Deny-All Egress
@@ -113,12 +107,9 @@ resource "google_compute_firewall" "default_deny_all_egress" {
   project            = var.host_project_id
   network            = google_compute_network.shared_vpc.name
   direction          = "EGRESS"
-  priority           = 65534 # FIXED: Lowest priority catch-all
+  priority           = 65534
   destination_ranges = ["0.0.0.0/0"]
-
-  deny {
-    protocol = "all"
-  }
+  deny { protocol = "all" }
 }
 
 # ==========================================

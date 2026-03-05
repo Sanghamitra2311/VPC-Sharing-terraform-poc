@@ -10,14 +10,13 @@ output "presented_subnet_id" {
 
 output "deployed_firewall_rules" {
   description = "List of the names of all firewall rules successfully deployed"
-  value = compact([
-    try(google_compute_firewall.dynamic_allow_ingress[0].name, ""),
-    try(google_compute_firewall.dynamic_allow_egress[0].name, ""),
-    try(google_compute_firewall.dynamic_deny_ingress[0].name, ""),
-    try(google_compute_firewall.dynamic_deny_egress[0].name, ""),
-    google_compute_firewall.default_deny_all_ingress.name,
-    google_compute_firewall.default_deny_all_egress.name
-  ])
+  value = concat(
+    [for rule in google_compute_firewall.unified_rules : rule.name],
+    [
+      google_compute_firewall.default_deny_all_ingress.name,
+      google_compute_firewall.default_deny_all_egress.name
+    ]
+  )
 }
 
 output "psa_allocation_name" {
