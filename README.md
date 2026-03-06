@@ -173,15 +173,24 @@ firewall_rules = {
 # ==========================================
 # 3. PRIVATE SERVICE ACCESS (Optional)
 # ==========================================
-# Defines multiple internal IP ranges for Google Managed Services (like Cloud SQL).
-# Leave the map empty ({}) to bypass PSA creation entirely.
+# Master toggle: Set to false to disable PSA entirely, bypassing the map below.
+create_psa = true 
+
+# Map of distinct IP ranges for Google Managed Services
 psa_ranges = {
-  "sample-range-1" = {
-    address       = "10.240.0.0"  # Explicitly requested IP range
+  "sample-range1" = {
+    address       = "10.240.0.0" # Explicitly defined starting IP
     prefix_length = 24
   },
-  "sample-range-2" = {
-    address       = ""            # Empty string forces GCP to auto-allocate
+  "sample-range2" = {
+    address       = ""           # Left blank; GCP will auto-allocate a range
     prefix_length = 24
+
   }
 }
+
+```
+
+## Screenshots
+<img width="1080" height="659" alt="image" src="https://github.com/user-attachments/assets/1fb0372f-e43c-4e00-b443-86c161282eb7" />
+
