@@ -19,7 +19,10 @@ output "deployed_firewall_rules" {
   )
 }
 
-output "psa_allocation_name" {
-  description = "The name of the PSA IP allocation"
-  value       = try(google_compute_global_address.psa_range[0].name, "PSA not created")
+output "psa_allocations" {
+  description = "Map of all created PSA ranges and their assigned IP networks"
+  value = var.create_psa ? {
+    for k, v in google_compute_global_address.psa_range : 
+    k => "${v.address}/${v.prefix_length}"
+  } : {}
 }

@@ -16,22 +16,22 @@ variable "subnets" {
 # ==========================================
 # OPTIONAL: PRIVATE SERVICE ACCESS (PSA)
 # ==========================================
+# ==========================================
+# OPTIONAL: PRIVATE SERVICE ACCESS (PSA) RANGES
+# ==========================================
 variable "create_psa" {
-  type    = bool
-  default = false
+  description = "Master toggle to enable or disable PSA creation entirely."
+  type        = bool
+  default     = false
 }
-
-variable "psa_address" {
-  type        = string
-  description = "The starting IP address for the PSA range (Leave blank to let GCP auto-allocate)"
-  default     = ""
+variable "psa_ranges" {
+  description = "Map of Private Service Access (PSA) IP allocations"
+  type = map(object({
+    address       = optional(string, "") # Leave blank ("") to let GCP auto-allocate
+    prefix_length = number
+  }))
+  default = {}
 }
-
-variable "psa_prefix_length" {
-  type    = number
-  default = 24
-}
-
 # ==========================================
 # FIREWALL RULES (UNIFIED ENGINE SCHEMA)
 # ==========================================
@@ -39,7 +39,7 @@ variable "firewall_rules" {
   description = "Unified map of all custom firewall rules"
   type = map(object({
     direction               = string
-    action                  = string 
+    action                  = string
     priority                = number
     ranges                  = list(string)
     target_tags             = optional(list(string), [])

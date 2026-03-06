@@ -19,8 +19,8 @@ resource "google_compute_network" "shared_vpc" {
 # 3. CREATE MULTIPLE SUBNETS DYNAMICALLY
 # ==========================================
 resource "google_compute_subnetwork" "shared_subnet" {
-  for_each      = var.subnets
-  
+  for_each = var.subnets
+
   name          = each.key
   ip_cidr_range = each.value.cidr
   region        = each.value.region
@@ -50,15 +50,15 @@ data "google_project" "service_projects" {
 
 # Present each subnet strictly to its mapped Service Project
 resource "google_compute_subnetwork_iam_member" "subnet_user" {
-  for_each   = var.subnets
-  
+  for_each = var.subnets
+
   project    = var.host_project_id
   region     = each.value.region
   subnetwork = google_compute_subnetwork.shared_subnet[each.key].name
   role       = "roles/compute.networkUser"
-  
+
   # Dynamically fetches the correct project number based on the subnet's mapped project ID
-  member     = "serviceAccount:${data.google_project.service_projects[each.value.service_project_id].number}@cloudservices.gserviceaccount.com"
+  member = "serviceAccount:${data.google_project.service_projects[each.value.service_project_id].number}@cloudservices.gserviceaccount.com"
 }
 
 # ==========================================
@@ -119,22 +119,29 @@ resource "google_compute_firewall" "default_deny_all_egress" {
 # ==========================================
 # OPTIONAL: PRIVATE SERVICE ACCESS (PSA)
 # ==========================================
+# 1. Dynamically loop through the map ONLY if create_psa is true
+
 resource "google_compute_global_address" "psa_range" {
-  count         = var.create_psa ? 1 : 0
-  name          = "${var.network_name}-psa-allocation"
-  project       = var.host_project_id
-  purpose       = "VPC_PEERING"
-  address_type  = "INTERNAL"
-  
-  # Applies the explicit IP address if provided in tfvars
-  address       = var.psa_address != "" ? var.psa_address : null
-  prefix_length = var.psa_prefix_length
+  for_each      = var.create_psa ? var.psa_ranges : {}
+  name         = "${var.network_name}-${each.key}"
+  project      = var.host_project_id
+  purpose      = "VPC_PEERING"
+  address_type = "INTERNAL"
+
+  # Uses the explicit IP if provided, otherwise tells GCP to auto-allocate
+  address       = each.value.address != "" ? each.value.address : null
+  prefix_length = each.value.prefix_length
   network       = google_compute_network.shared_vpc.id
 }
 
+# 2. Feed all of those allocations into a single VPC Peering connection
 resource "google_service_networking_connection" "psa_connection" {
-  count                   = var.create_psa ? 1 : 0
-  network                 = google_compute_network.shared_vpc.id
-  service                 = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = [google_compute_global_address.psa_range[0].name]
+  # Only runs if create_psa is true AND there is at least 1 range in the map.
+  count = var.create_psa && length(var.psa_ranges) > 0 ? 1 : 0
+
+  network = google_compute_network.shared_vpc.id
+  service = "servicenetworking.googleapis.com"
+
+  # Dynamically collects the names of EVERY address generated in the block above
+  reserved_peering_ranges = [for range in google_compute_global_address.psa_range : range.name]
 }
